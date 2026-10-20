@@ -57,6 +57,19 @@ enum SelfTest {
         check(GermanRules.isValidIBAN("DE89 3704 0044 0532 0130 00"), "IBAN-Prüfziffer gültig")
         check(!GermanRules.isValidIBAN("DE00 1234 5678 9012 3456 78"), "IBAN-Prüfziffer ungültig erkannt")
 
+        // 1b. Tabellenzeilen: KI-Namen abschneiden, Personalliste im Datenraum erkennen
+        check(Analyzer.namePrefix("Müller Robert Straße des Friedens").0 == "Müller Robert", "Name aus Tabellenzeile: Müller Robert")
+        check(Analyzer.namePrefix("Danish Najibullah Zum Erlenbruch").0 == "Danish Najibullah", "Name aus Tabellenzeile: Danish Najibullah")
+        check(Analyzer.namePrefix("Hans Müller").0 == "Hans Müller", "Name bleibt vollständig: Hans Müller")
+        check(Analyzer.cleanAddress("16727 Oberkrämer Deutsch") == "16727 Oberkrämer", "Anschrift ohne Staatsangehörigkeit")
+        check(Analyzer.cleanAddress("14621").isEmpty, "reine Postleitzahl verworfen")
+        let csv = dir.appendingPathComponent("Mitarbeiterliste.csv")
+        try? "Name;Vorname;Straße;PLZ;Ort;Staatsangehörigkeit\nMüller;Robert;Straße des Friedens 18;13125;Berlin;Deutsch\nNajibullah;Danish;Zum Erlenbruch 5;14621;Schönwalde;Deutsch\nWiedeer;Janine;Zum Koppgraben 2;16727;Oberkrämer;Deutsch\n"
+            .write(to: csv, atomically: true, encoding: .utf8)
+        let detected = ListImporter.detectEmployeeList(at: csv) ?? []
+        check(detected.count == 3 && detected.first?.lastName == "Müller" && detected.first?.firstName == "Robert",
+              "Personalliste im Datenraum erkannt: \(detected.map(\.fullName).joined(separator: ", "))")
+
         // 2. Test-PDF erzeugen (Seite 1 mit Text, Seite 2 nur als Bild → Texterkennung)
         let pdfURL = dir.appendingPathComponent("Arbeitsvertrag_Hans-Mueller.pdf")
         guard makeTestPDF(at: pdfURL) else {
