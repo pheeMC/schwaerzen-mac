@@ -5,6 +5,10 @@ import AppKit
 struct SchwaerzenApp: App {
     @State private var store = AppStore()
 
+    init() {
+        SelfTest.runIfRequested()
+    }
+
     var body: some Scene {
         WindowGroup("Schwärzen") {
             RootView()

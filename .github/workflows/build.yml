@@ -39,6 +39,12 @@ jobs:
           path: build/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
 
+      - name: Modell-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Application Support/Schwaerzen/ModelCache
+          key: model-privacy-filter-mlx-8bit-v1
+
       - name: Bauen
         run: |
           set +e
@@ -54,19 +60,35 @@ jobs:
             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
             build > build.log 2>&1
           STATUS=$?
-          grep -E "(error|warning): " build.log | grep "/Schwaerzen/" | sort -u | head -300 > diagnostics.txt
+          grep -E "(error|warning): " build.log | grep "schwaerzen-mac/Schwaerzen/" | sort -u | head -300 > diagnostics.txt
           echo "---- Diagnose (eigener Code) ----"
           cat diagnostics.txt
           echo "---- Ende des Logs ----"
           tail -40 build.log
           exit $STATUS
 
+      - name: Paketieren & Selbsttest
+        id: pack
+        run: |
+          APP="build/Build/Products/Release/Schwaerzen.app"
+          codesign --force --deep --sign - "$APP"
+          { echo "Größe: $(du -sh "$APP" | cut -f1)"; find "$APP" \( -name "*.metallib" -o -name "*.bundle" -o -name "*.framework" \) -maxdepth 4; } > bundle.txt
+          cat bundle.txt
+          set +e
+          perl -e 'alarm 1500; exec @ARGV' "$APP/Contents/MacOS/Schwaerzen" --selftest "$RUNNER_TEMP/selftest" --ai > selftest.txt 2>&1
+          echo "Exit: $?" >> selftest.txt
+          set -e
+          cat selftest.txt
+          ditto -c -k --keepParent "$APP" Schwaerzen.zip
+          ls -lh Schwaerzen.zip
+
       - name: Diagnose in Branch ci-log ablegen
         if: always()
         run: |
           mkdir -p /tmp/ci
           [ -f build.log ] || echo "kein build.log" > build.log
-          grep -E "(error|warning): " build.log | grep "/Schwaerzen/Schwaerzen/" | sed 's#.*/Schwaerzen/Schwaerzen/##' | sort -u > /tmp/ci/own.txt || true
+          grep -E "(error|warning): " build.log | grep "schwaerzen-mac/Schwaerzen/" | sed 's#.*schwaerzen-mac/Schwaerzen/##' | sort -u > /tmp/ci/own.txt || true
+          cp selftest.txt bundle.txt /tmp/ci/ 2>/dev/null || true
           grep -E "error: |fatal error|xcodebuild: error" build.log | sort -u | head -300 > /tmp/ci/errors.txt || true
           tail -150 build.log > /tmp/ci/tail.txt
           echo "run ${{ github.run_number }} sha ${{ github.sha }}" > /tmp/ci/info.txt
@@ -77,12 +99,8 @@ jobs:
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Build ${{ github.run_number }}"
           git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ci-log
 
-      - name: Paketieren
-        run: |
-          APP="build/Build/Products/Release/Schwaerzen.app"
-          codesign --force --deep --sign - "$APP"
-          ditto -c -k --keepParent "$APP" Schwaerzen.zip
-          ls -lh Schwaerzen.zip
+      - name: Selbsttest bestanden?
+        run: grep -q "SELBSTTEST BESTANDEN" selftest.txt
 
       - name: Release veröffentlichen
         uses: softprops/action-gh-release@v2
