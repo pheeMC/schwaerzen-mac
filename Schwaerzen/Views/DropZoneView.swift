@@ -5,8 +5,17 @@ struct DropZoneView: View {
     let targeted: Bool
 
     var body: some View {
+        // In einer ScrollView, damit die Mindestgröße nicht vom Textumbruch abhängt (sonst Layout-Schleife im Fenster).
+        ScrollView {
+            content
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 48)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    private var content: some View {
         VStack(spacing: 26) {
-            Spacer(minLength: 40)
             VStack(spacing: 18) {
                 Text("ORDNER ODER DATEIEN")
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -46,7 +55,7 @@ struct DropZoneView: View {
             }
             .padding(.horizontal, 56)
             .padding(.vertical, 44)
-            .frame(maxWidth: 680)
+            .frame(width: 640)
             .glassEffect(.regular.tint(targeted ? Color.accentColor.opacity(0.18) : Color.clear), in: .rect(cornerRadius: 28))
             .overlay(
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -57,10 +66,8 @@ struct DropZoneView: View {
             .animation(.smooth(duration: 0.2), value: targeted)
 
             tips
-            Spacer(minLength: 40)
         }
-        .padding(32)
-        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+        .padding(.horizontal, 32)
     }
 
     private var tips: some View {
@@ -69,7 +76,7 @@ struct DropZoneView: View {
             tip("checklist", "Pro Person entscheiden", "Eine Entscheidung gilt für alle Fundstellen in allen Dokumenten.")
             tip("lock.shield", "Gesundheitsdaten bleiben draußen", "Krankmeldungen, BEM und Ähnliches werden gar nicht exportiert.")
         }
-        .frame(maxWidth: 820)
+        .frame(width: 760)
     }
 
     private func tip(_ symbol: String, _ title: String, _ text: String) -> some View {
@@ -83,6 +90,6 @@ struct DropZoneView: View {
                 Text(text).font(.caption).foregroundStyle(.secondary).lineLimit(3)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: 240, alignment: .leading)
     }
 }

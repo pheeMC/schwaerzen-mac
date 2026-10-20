@@ -88,6 +88,17 @@ jobs:
           mkdir -p ui
           rm -f ~/Library/Logs/DiagnosticReports/Schwaerzen* 2>/dev/null || true
           : > ui/ergebnis.txt
+          # 1. Leeres Mandat (Startfläche) – zweimal starten, wie nach dem Anlegen
+          for RUN in 1 2; do
+            "$APP/Contents/MacOS/Schwaerzen" --demo-empty > "ui/leer-$RUN.log" 2>&1 &
+            PID=$!
+            sleep 25
+            if kill -0 $PID 2>/dev/null; then echo "leer-$RUN: läuft" >> ui/ergebnis.txt; else echo "leer-$RUN: BEENDET/ABGESTÜRZT" >> ui/ergebnis.txt; fi
+            screencapture -x -t jpg "ui/leer-$RUN.jpg" 2>>ui/ergebnis.txt || true
+            kill $PID 2>/dev/null || true
+            sleep 3
+          done
+          # 2. Demo-Mandat mit Dateien, jede Ansicht
           for MODE in files entities unsure pages; do
             EXTRA=""
             [ "$MODE" = "entities" ] && EXTRA="--inspector"

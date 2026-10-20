@@ -137,6 +137,14 @@ final class AppStore {
     /// `--demo <ordner> [--mode entities|unsure|pages|files] [--no-ai] [--inspector]` – für Oberflächentests.
     private func setupDemoIfRequested() {
         let args = CommandLine.arguments
+        if args.contains("--demo-empty") {
+            if let existing = mandates.first(where: { $0.name == "Leeres Mandat" }) {
+                select(mandate: existing.id)
+            } else {
+                createMandate(name: "Leeres Mandat", caseNumber: "1 IN 1/26")
+            }
+            return
+        }
         guard let i = args.firstIndex(of: "--demo") else { return }
         let dir = i + 1 < args.count && !args[i + 1].hasPrefix("--")
             ? URL(fileURLWithPath: args[i + 1])
