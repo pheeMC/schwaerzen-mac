@@ -415,12 +415,12 @@ final class AppStore {
         progressText = "Übertrage auf alle Dokumente …"
         let targets = m.propagationTargets()
         guard !targets.isEmpty else { return }
-        let existing = Set(m.findings.map(Mandate.findingID))
+        let existing = m.rangeIndex()
         var keysPerFile: [UUID: Set<String>] = [:]
         for f in m.findings { keysPerFile[f.fileID, default: []].insert(f.entityKey) }
         let files = m.files
         let found = await Task.detached(priority: .userInitiated) {
-            Analyzer.propagate(mandateID: mid, files: files, targets: targets, existing: existing, keysPerFile: keysPerFile)
+            Analyzer.propagate(mandateID: mid, files: files, targets: targets, existingRanges: existing, keysPerFile: keysPerFile)
         }.value
         if !found.isEmpty {
             mutate(mid) { $0.findings.append(contentsOf: found) }

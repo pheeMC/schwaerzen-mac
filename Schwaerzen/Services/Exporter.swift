@@ -130,7 +130,7 @@ enum Exporter {
             count += pageMarks.count
 
             guard let raster = rasterize(page: page, size: size, scale: scale, marks: pageMarks, labels: settings.labelsInBars),
-                  let jpeg = jpegImage(raster) else {
+                  let jpeg = jpegImage(raster.final) else {
                 throw AppError("Seite \(i + 1) konnte nicht aufgebaut werden")
             }
 
@@ -140,9 +140,15 @@ enum Exporter {
             ctx.draw(jpeg, in: box)
 
             if settings.rebuildTextLayer {
-                if let ocr = try? await OCREngine.recognize(raster) {
+                // Texterkennung auf dem Bild mit Balken, aber ohne Kürzel – die Kürzel kommen exakt als Text dazu.
+                if let ocr = try? await OCREngine.recognize(raster.forOCR) {
                     drawInvisibleText(ocr.lines, in: ctx, size: size)
                 }
+                let labelLines = raster.labeled.map { item in
+                    OCRLineResult(text: item.1, box: CGRect(x: item.0.minX / size.width, y: item.0.minY / size.height,
+                                                            width: item.0.width / size.width, height: item.0.height / size.height))
+                }
+                drawInvisibleText(labelLines, in: ctx, size: size)
             }
             ctx.endPDFPage()
         }
@@ -150,7 +156,14 @@ enum Exporter {
         return count
     }
 
-    private static func rasterize(page: PDFPage, size: CGSize, scale: CGFloat, marks: [Mark], labels: Bool) -> CGImage? {
+    struct Raster {
+        var final: CGImage
+        var forOCR: CGImage
+        /// Rechteck in Seitenpunkten + Kürzel
+        var labeled: [(CGRect, String)]
+    }
+
+    private static func rasterize(page: PDFPage, size: CGSize, scale: CGFloat, marks: [Mark], labels: Bool) -> Raster? {
         let w = Int((size.width * scale).rounded())
         let h = Int((size.height * scale).rounded())
         guard w > 0, h > 0,
@@ -165,28 +178,41 @@ enum Exporter {
         page.draw(with: .mediaBox, to: ctx)
         ctx.restoreGState()
 
+        ctx.setFillColor(NSColor.black.cgColor)
         for mark in marks {
             let r = CGRect(x: mark.rect.minX * scale, y: mark.rect.minY * scale,
                            width: mark.rect.width * scale, height: mark.rect.height * scale).insetBy(dx: -2, dy: -2)
-            ctx.setFillColor(NSColor.black.cgColor)
             ctx.fill(r)
-            if labels, let label = mark.label, !label.isEmpty {
-                drawLabel(label, in: r, ctx: ctx)
+        }
+        guard let forOCR = ctx.makeImage() else { return nil }
+
+        // Kürzel: bei überlappenden Balken nur im größten
+        var labeled: [(CGRect, String)] = []
+        if labels {
+            let sorted = marks.filter { !($0.label ?? "").isEmpty }.sorted { $0.rect.width * $0.rect.height > $1.rect.width * $1.rect.height }
+            for mark in sorted {
+                guard let label = mark.label else { continue }
+                if labeled.contains(where: { $0.0.insetBy(dx: -1, dy: -1).intersects(mark.rect) }) { continue }
+                let r = CGRect(x: mark.rect.minX * scale, y: mark.rect.minY * scale,
+                               width: mark.rect.width * scale, height: mark.rect.height * scale).insetBy(dx: -2, dy: -2)
+                if drawLabel(label, in: r, ctx: ctx) { labeled.append((mark.rect, label)) }
             }
         }
-        return ctx.makeImage()
+        guard let final = ctx.makeImage() else { return nil }
+        return Raster(final: final, forOCR: forOCR, labeled: labeled)
     }
 
-    private static func drawLabel(_ label: String, in rect: CGRect, ctx: CGContext) {
+    @discardableResult
+    private static func drawLabel(_ label: String, in rect: CGRect, ctx: CGContext) -> Bool {
         var fontSize = min(rect.height * 0.62, 30)
-        guard fontSize >= 7 else { return }
+        guard fontSize >= 7 else { return false }
         var font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .medium)
         var attr = NSAttributedString(string: label, attributes: [.font: font, NSAttributedString.Key(kCTForegroundColorAttributeName as String): NSColor.white.cgColor])
         var line = CTLineCreateWithAttributedString(attr)
         var width = CTLineGetTypographicBounds(line, nil, nil, nil)
         if width > Double(rect.width - 6) {
             fontSize = fontSize * CGFloat(Double(rect.width - 6) / width)
-            guard fontSize >= 7 else { return }
+            guard fontSize >= 7 else { return false }
             font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .medium)
             attr = NSAttributedString(string: label, attributes: [.font: font, NSAttributedString.Key(kCTForegroundColorAttributeName as String): NSColor.white.cgColor])
             line = CTLineCreateWithAttributedString(attr)
@@ -199,6 +225,7 @@ enum Exporter {
         ctx.textPosition = CGPoint(x: x, y: y)
         CTLineDraw(line, ctx)
         ctx.restoreGState()
+        return true
     }
 
     private static func jpegImage(_ image: CGImage) -> CGImage? {

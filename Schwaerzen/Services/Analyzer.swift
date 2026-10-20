@@ -218,10 +218,41 @@ enum Analyzer {
         let ns = page.text as NSString
         let taken = existing.filter { $0.page == page.index }.map(\.range)
 
+        // 1. Offsets prüfen (Scalar-Offsets → NSRange), sonst Text suchen
+        struct Raw { var kind: Kind; var range: NSRange; var confidence: Double; var label: String }
+        var raws: [Raw] = []
         for span in spans {
-            guard var kind = AIDetector.kind(for: span.label) else { continue }
+            guard let kind = AIDetector.kind(for: span.label) else { continue }
             if kind == .date && !includeDates { continue }
-            guard var range = nsRange(scalarStart: span.start, scalarEnd: span.end, in: page.text) ?? search(span.text, in: page.text) else { continue }
+            var range = nsRange(scalarStart: span.start, scalarEnd: span.end, in: page.text)
+            if let r = range, Norm.key(ns.substring(with: r)) != Norm.key(span.text) { range = nil }
+            guard let found = range ?? search(span.text, in: page.text) else { continue }
+            raws.append(Raw(kind: kind, range: found, confidence: span.confidence, label: span.label))
+        }
+        // 2. Benachbarte Teile zusammenfügen („Hans“ + „Müller“ → „Hans Müller“)
+        raws.sort { $0.range.location < $1.range.location }
+        var merged: [Raw] = []
+        for r in raws {
+            if var last = merged.last, last.kind == r.kind, last.kind == .name || last.kind == .address {
+                let gapStart = last.range.location + last.range.length
+                let gapLength = r.range.location - gapStart
+                if gapLength >= 0 && gapLength <= 3 {
+                    let gap = ns.substring(with: NSRange(location: gapStart, length: gapLength))
+                    let allowed = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: last.kind == .address ? "-,." : "-"))
+                    if gap.unicodeScalars.allSatisfy({ allowed.contains($0) }) {
+                        last.range = NSRange(location: last.range.location, length: r.range.location + r.range.length - last.range.location)
+                        last.confidence = max(last.confidence, r.confidence)
+                        merged[merged.count - 1] = last
+                        continue
+                    }
+                }
+            }
+            merged.append(r)
+        }
+
+        for raw in merged {
+            var kind = raw.kind
+            var range = raw.range
             var surface = ns.substring(with: range)
 
             if kind == .name {
@@ -249,8 +280,8 @@ enum Analyzer {
                 }
             }
             out.append(Mention(page: page.index, range: range, surface: surface, kind: kind, role: role,
-                               presetKey: preset, personNumber: number, confidence: span.confidence,
-                               source: "KI", label: span.label))
+                               presetKey: preset, personNumber: number, confidence: raw.confidence,
+                               source: "KI", label: raw.label))
         }
         return out
     }
@@ -298,9 +329,9 @@ enum Analyzer {
 
     /// Sucht alle bekannten Personen/Begriffe in allen Dokumenten, damit eine Entscheidung überall gilt.
     static func propagate(mandateID: UUID, files: [SourceFile], targets: [PropagationTarget],
-                          existing: Set<String>, keysPerFile: [UUID: Set<String>]) -> [Finding] {
+                          existingRanges: [String: [NSRange]], keysPerFile: [UUID: Set<String>]) -> [Finding] {
         var out: [Finding] = []
-        var seen = existing
+        var taken = existingRanges
         for file in files where file.status == .done && file.docType != .excluded {
             let pages = Storage.loadPages(mandate: mandateID, file: file.id)
             if pages.isEmpty { continue }
@@ -316,13 +347,13 @@ enum Analyzer {
                     if let s = t.surname, inFile.contains(t.key), compact.contains(t.surnamePrefilter) {
                         ranges += SearchPattern.matches(s, in: page.text)
                     }
+                    let pageKey = "\(file.id.uuidString)|\(page.index)"
                     for r in ranges {
-                        let id = "\(file.id.uuidString)|\(page.index)|\(r.location)"
-                        if seen.contains(id) { continue }
+                        if (taken[pageKey] ?? []).contains(where: { NSIntersectionRange($0, r).length > 0 }) { continue }
                         if !page.isOCR && doc == nil { doc = PDFDocument(url: Paths.workPDF(mandateID, file.id)) }
                         let rects = Locator.rects(for: r, page: page, pdfPage: doc?.page(at: page.index))
                         if rects.isEmpty { continue }
-                        seen.insert(id)
+                        taken[pageKey, default: []].append(r)
                         let (b, mt, a) = Locator.snippet(page.text, range: r)
                         out.append(Finding(entityKey: t.key, fileID: file.id, page: page.index, location: r.location,
                                            length: r.length, rects: rects, before: b, matched: mt, after: a))
@@ -338,6 +369,15 @@ enum Analyzer {
 
 extension Mandate {
     static func findingID(_ f: Finding) -> String { "\(f.fileID.uuidString)|\(f.page)|\(f.location)" }
+
+    /// Belegte Textbereiche je Datei und Seite (für die Übertragung ohne Doppelungen).
+    func rangeIndex() -> [String: [NSRange]] {
+        var out: [String: [NSRange]] = [:]
+        for f in findings where f.length > 0 {
+            out["\(f.fileID.uuidString)|\(f.page)", default: []].append(NSRange(location: f.location, length: f.length))
+        }
+        return out
+    }
 
     func entityKey(for m: Mention) -> String {
         if let k = m.presetKey { return k }

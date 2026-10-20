@@ -125,10 +125,37 @@ enum SelfTest {
 
         // 7. Übertragung
         let extra = Analyzer.propagate(mandateID: mandate.id, files: mandate.files, targets: mandate.propagationTargets(),
-                                       existing: Set(mandate.findings.map(Mandate.findingID)),
+                                       existingRanges: mandate.rangeIndex(),
                                        keysPerFile: [file.id: Set(mandate.findings.map(\.entityKey))])
         mandate.findings += extra
         print("       Übertragung: \(extra.count) zusätzliche Fundstellen")
+
+        // 7b. KI-Modell (nur mit --ai, lädt das Modell bei Bedarf)
+        if CommandLine.arguments.contains("--ai") {
+            do {
+                let started = Date()
+                let modelDir = try await OpenMedModelStore.downloadMLXModel(repoID: AIDetector.repoID, cacheDirectory: Paths.ownModelCache)
+                print("       Modell bereit nach \(Int(Date().timeIntervalSince(started))) s")
+                let model = try OpenMed(backend: .mlx(modelDirectoryURL: modelDir))
+                let t0 = Date()
+                let entities = try model.extractPII(pages[0].text, confidenceThreshold: 0.4, useSmartMerging: false)
+                print("       KI: \(entities.count) Treffer in \(String(format: "%.1f", Date().timeIntervalSince(t0))) s")
+                for e in entities.prefix(25) {
+                    print("       · \(e.label) \(String(format: "%.2f", e.confidence)): \(e.text)")
+                }
+                let spans = entities.map { AISpan(label: $0.label, text: $0.text, start: $0.start, end: $0.end, confidence: Double($0.confidence)) }
+                let alone = Analyzer.aiMentions(spans, page: pages[0], existing: [], matcher: matcher, includeDates: false)
+                for m in alone { print("       → \(m.kind.rawValue) \(m.surface) \(m.presetKey ?? "")") }
+                check(alone.contains { $0.kind == .name }, "KI erkennt Namen")
+                check(alone.contains { $0.presetKey == "ma:0417" }, "KI-Name der Personalliste zugeordnet")
+                let extraAI = Analyzer.aiMentions(spans, page: pages[0], existing: mentions, matcher: matcher, includeDates: false)
+                let locatedAI = Analyzer.locate(mentions + extraAI, pdfURL: work, pages: pages)
+                mandate.ingest(locatedAI, fileID: file.id)
+                print("       KI ergänzt \(extraAI.count) Treffer")
+            } catch {
+                check(false, "KI-Modell: \(error.localizedDescription)")
+            }
+        }
 
         // 8. Dateinamen
         let renamer = Renamer(mandate: mandate)
@@ -158,6 +185,7 @@ enum SelfTest {
                 for secret in ["Hans Müller", "Lindenweg", "DE89", "3704", "12 345 678", "140379", "hans.mueller"] {
                     check(!text.localizedCaseInsensitiveContains(secret), "nicht mehr enthalten: \(secret)")
                 }
+                check(text.contains("MA-0417") && !text.contains("MA-MA"), "Kürzel MA-0417 sauber in der Textebene")
                 check(text.localizedCaseInsensitiveContains("Nordlicht"), "Schuldnerin bleibt sichtbar")
                 check(text.contains("4.250") || text.contains("4250"), "Gehalt bleibt sichtbar")
                 let attrs = doc.documentAttributes ?? [:]
@@ -174,28 +202,6 @@ enum SelfTest {
             .filter { $0.pathExtension == "metallib" }
         _ = metallib
         check(!libs.isEmpty, "Metal-Bibliothek für das KI-Modell im Paket: \(libs.map(\.lastPathComponent).joined(separator: ", "))")
-
-        // 11. KI-Modell (nur mit --ai, lädt das Modell bei Bedarf)
-        if CommandLine.arguments.contains("--ai") {
-            do {
-                let started = Date()
-                let modelDir = try await OpenMedModelStore.downloadMLXModel(repoID: AIDetector.repoID, cacheDirectory: Paths.ownModelCache)
-                print("       Modell bereit nach \(Int(Date().timeIntervalSince(started))) s")
-                let model = try OpenMed(backend: .mlx(modelDirectoryURL: modelDir))
-                let t0 = Date()
-                let entities = try model.extractPII(page1, confidenceThreshold: 0.4, useSmartMerging: false)
-                print("       KI: \(entities.count) Treffer in \(String(format: "%.1f", Date().timeIntervalSince(t0))) s")
-                for e in entities.prefix(25) {
-                    print("       · \(e.label) \(String(format: "%.2f", e.confidence)): \(e.text)")
-                }
-                let spans = entities.map { AISpan(label: $0.label, text: $0.text, start: $0.start, end: $0.end, confidence: Double($0.confidence)) }
-                let ai = Analyzer.aiMentions(spans, page: pages[0], existing: [], matcher: matcher, includeDates: false)
-                check(ai.contains { $0.kind == .name }, "KI erkennt Namen")
-                check(ai.contains { $0.presetKey == "ma:0417" }, "KI-Name der Personalliste zugeordnet")
-            } catch {
-                check(false, "KI-Modell: \(error.localizedDescription)")
-            }
-        }
 
         print(failures.isEmpty ? "\nSELBSTTEST BESTANDEN" : "\nSELBSTTEST: \(failures.count) Fehler")
         return failures.isEmpty ? 0 : 2

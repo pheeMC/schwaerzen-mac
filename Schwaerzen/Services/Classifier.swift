@@ -10,6 +10,8 @@ enum Classifier {
     private static let exclusions: [(String, String)] = [
         ("arbeitsunfähigkeit", "Gesundheitsdaten (AU-Bescheinigung)"),
         ("au-bescheinigung", "Gesundheitsdaten (AU-Bescheinigung)"),
+        ("au bescheinigung", "Gesundheitsdaten (AU-Bescheinigung)"),
+        ("arbeitsunfähigkeitsbescheinigung", "Gesundheitsdaten (AU-Bescheinigung)"),
         ("krankmeldung", "Gesundheitsdaten (Krankmeldung)"),
         ("krankschreibung", "Gesundheitsdaten (Krankmeldung)"),
         ("eingliederungsmanagement", "Gesundheitsdaten (BEM)"),
@@ -46,22 +48,24 @@ enum Classifier {
     ]
 
     static func classify(fileName: String, folderPath: String, pages: [PageData]) -> Result {
-        let name = (fileName + " " + folderPath).lowercased()
-            .replacingOccurrences(of: "_", with: " ")
+        let name = normalize(fileName + " " + folderPath)
             .replacingOccurrences(of: "ae", with: "ä")
             .replacingOccurrences(of: "oe", with: "ö")
             .replacingOccurrences(of: "ue", with: "ü")
-        let head = pages.prefix(2).map(\.text).joined(separator: "\n").lowercased()
+        let head = normalize(pages.prefix(2).map(\.text).joined(separator: "\n"))
         let title = String(head.prefix(700))
 
-        for (needle, reason) in exclusions where name.contains(needle) || title.contains(needle) {
+        for (raw, reason) in exclusions {
+            let needle = normalize(raw)
+            guard name.contains(needle) || title.contains(needle) else { continue }
             return Result(type: .excluded, excludedReason: reason)
         }
 
         var best: (DocType, Int) = (.other, 0)
         for (type, words) in keywords {
             var score = 0
-            for w in words {
+            for raw in words {
+                let w = normalize(raw)
                 if name.contains(w) { score += 6 }
                 if title.contains(w) { score += 3 }
                 score += min(occurrences(of: w, in: head), 4)
@@ -69,6 +73,13 @@ enum Classifier {
             if score > best.1 { best = (type, score) }
         }
         return Result(type: best.1 >= 3 ? best.0 : .other, excludedReason: "")
+    }
+
+    /// Kleinbuchstaben, Unterstriche/Bindestriche/Punkte als Leerzeichen, Mehrfach-Leerzeichen zusammengefasst.
+    private static func normalize(_ s: String) -> String {
+        var t = s.lowercased()
+        for c in ["_", "-", ".", "–", "/"] { t = t.replacingOccurrences(of: c, with: " ") }
+        return t.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
     private static func occurrences(of needle: String, in text: String) -> Int {

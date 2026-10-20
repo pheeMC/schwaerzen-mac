@@ -137,6 +137,7 @@ enum GermanRules {
             rule("Sozialversicherungsnummer", .identifier, #"\b\d{2}\s?[0-3]\d[01]\d{3}\s?[A-Z]\s?\d{3}\b"#),
             rule("Versicherungsnummer", .identifier, #"(?i)\b(?:sv|rv|sozialversicherungs|rentenversicherungs|versicherungs)-?\s?(?:nr\.?|nummer)\s*[:.]?\s*([0-9A-Z][0-9A-Z ]{8,14}[0-9A-Z])"#, group: 1),
             rule("Ausweisnummer", .identifier, #"(?i)\b(?:personalausweis|ausweis|reisepass)(?:-?nr\.?|nummer)?\s*[:.]?\s*([CFGHJKLMNPRTVWXYZ0-9]{9,10})\b"#, group: 1),
+            rule("Anschrift", .address, #"\b(?:[A-ZÄÖÜ][\wäöüß\-]+\s)?(?:[A-ZÄÖÜ][\wäöüß\-]*(?:straße|strasse|str\.|weg|allee|platz|gasse|ring|damm|ufer|chaussee|steig|pfad|stieg|deich|markt|hof|berg|feld)|Straße|Weg|Allee|Platz|Ring|Damm|Ufer|Chaussee|Deich|Markt|Steig|Pfad)\s+\d{1,4}(?:\s?[a-zA-Z](?![\wäöüß]))?(?:\s?[-/]\s?\d{1,4}[a-z]?)?(?:,?\s+\d{5}\s+[A-ZÄÖÜ][\wäöüß\-]+(?:\s(?:an der|am|im|in der|bei)\s[A-ZÄÖÜ][\wäöüß\-]+)?)?"#, confidence: 0.8),
             rule("E-Mail", .contact, #"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"#, confidence: 0.95),
             rule("Telefon", .contact, #"(?<![\d,.])(?:\+49|0049|\+43|\+41|0)\s?(?:\(0\)\s?)?[1-9]\d{1,4}(?:[\s/\-]?\d){4,10}(?![\d,.])"#, confidence: 0.8),
             rule("Geburtsdatum", .birthdate, #"(?i)\b(?:geb(?:oren)?\.?(?:\s+am)?|geburtsdatum|geb\.-?datum|geburtstag)\s*[:.]?\s*(\d{1,2}\.\s?\d{1,2}\.\s?(?:19|20)?\d{2})"#, group: 1),
