@@ -195,11 +195,23 @@ enum Analyzer {
             listHits.forEach { if let k = $0.presetKey { listKeysInFile.insert(k) } }
             out += listHits
 
+            let ns = page.text as NSString
             for hit in GermanRules.hits(in: page.text) {
                 if matcher.isNever(hit.text) { continue }
+                var confidence = hit.confidence
+                var label = hit.label
+                // Anschrift direkt hinter einem Namen der Nie-Liste (z. B. der Schuldnerin) → nicht automatisch schwärzen
+                if hit.kind == .address || hit.kind == .contact {
+                    let start = max(0, hit.range.location - 140)
+                    let before = ns.substring(with: NSRange(location: start, length: hit.range.location - start))
+                    if matcher.isNever(before) {
+                        confidence = 0.5
+                        label += " (vermutlich Anschrift der Gesellschaft)"
+                    }
+                }
                 out.append(Mention(page: page.index, range: hit.range, surface: hit.text, kind: hit.kind, role: nil,
-                                   presetKey: nil, personNumber: nil, confidence: hit.confidence,
-                                   source: "Regel", label: hit.label))
+                                   presetKey: nil, personNumber: nil, confidence: confidence,
+                                   source: "Regel", label: label))
             }
         }
 
@@ -457,7 +469,7 @@ extension Mandate {
         if m.kind == .term { return (.redact, true, "Immer-Liste") }
         if m.kind.locked { return (.redact, true, "Feste Regel") }
         if m.source == "Liste" { return (.redact, false, "") }
-        if docType.isPersonal && m.source == "Regel" && (m.kind == .address || m.kind == .contact) { return (.redact, false, "") }
+        if docType.isPersonal && m.source == "Regel" && (m.kind == .address || m.kind == .contact) && m.confidence >= 0.75 { return (.redact, false, "") }
         if m.source == "Regel" && m.confidence >= 0.9 { return (.redact, false, "") }
         if docType.isPersonal && m.confidence >= profile.autoThreshold { return (.redact, false, "") }
         return (.pending, false, "")
