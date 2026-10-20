@@ -1,0 +1,93 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Umgebung
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      - name: Werkzeuge
+        run: brew install xcodegen
+
+      - name: Metal-Toolchain
+        run: xcodebuild -downloadComponent MetalToolchain || true
+
+      - name: Xcode-Projekt erzeugen
+        run: xcodegen generate
+
+      - name: Paket-Cache
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+
+      - name: Bauen
+        run: |
+          set +e
+          xcodebuild \
+            -project Schwaerzen.xcodeproj \
+            -scheme Schwaerzen \
+            -configuration Release \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath build \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
+            build > build.log 2>&1
+          STATUS=$?
+          grep -E "(error|warning): " build.log | grep "/Schwaerzen/" | sort -u | head -300 > diagnostics.txt
+          echo "---- Diagnose (eigener Code) ----"
+          cat diagnostics.txt
+          echo "---- Ende des Logs ----"
+          tail -40 build.log
+          exit $STATUS
+
+      - name: Logs sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            build.log
+            diagnostics.txt
+
+      - name: Paketieren
+        run: |
+          APP="build/Build/Products/Release/Schwaerzen.app"
+          codesign --force --deep --sign - "$APP"
+          ditto -c -k --keepParent "$APP" Schwaerzen.zip
+          ls -lh Schwaerzen.zip
+
+      - name: Release veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Schwärzen 0.1 (Build ${{ github.run_number }})
+          make_latest: true
+          files: Schwaerzen.zip
+          body: |
+            Mac-App „Schwärzen“, automatisch gebaut aus `${{ github.sha }}`.
+
+            Installation: ZIP laden, entpacken, `Schwaerzen.app` in den Ordner „Programme“ ziehen.
+            Beim ersten Start: Rechtsklick → Öffnen (bzw. Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“).
+
+            Voraussetzung: macOS 26 oder neuer, Apple Silicon.
