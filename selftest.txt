@@ -1,0 +1,97 @@
+IOServiceMatchingfailed for: AppleM2ScalerParavirtDriver
+OK    Regeln geladen: 19
+OK    IBAN-Prüfziffer gültig
+OK    IBAN-Prüfziffer ungültig erkannt
+OK    Name aus Tabellenzeile: Müller Robert
+OK    Name aus Tabellenzeile: Danish Najibullah
+OK    Name bleibt vollständig: Hans Müller
+OK    Anschrift ohne Staatsangehörigkeit
+OK    reine Postleitzahl verworfen
+OK    Personalliste im Datenraum erkannt: Robert Müller, Danish Najibullah, Janine Wiedeer
+OK    Test-PDF mit 2 Seiten
+OK    Umwandlung: Bereits PDF
+OK    Seiten gelesen: 2
+OK    Seite 1 als Text
+OK    Seite 2 per Texterkennung
+OK    Texterkennung liest den Namen: Nachtrag (Scan) | Herr Hans Müller erhält ab 01.01.2025 eine Zulage. | Unterschrift: H. Müller
+OK    Dokumenttyp: Arbeitsverträge & Personal
+OK    AU-Bescheinigung ausgeschlossen: Gesundheitsdaten (AU-Bescheinigung)
+       16 Treffer, 16 mit Position
+       · S1 Regel address: Hafenstraße 4, 20457 Hamburg [1 Rechteck(e)]
+       · S1 Regel address: Lindenweg 12, 22303 Hamburg [1 Rechteck(e)]
+       · S1 Regel bank: DE89 3704 0044 0532 0130 00 [1 Rechteck(e)]
+       · S1 Regel contact: hans.mueller@example.de [1 Rechteck(e)]
+       · S1 Regel insurer: AOK Rheinland/Hamburg [1 Rechteck(e)]
+       · S1 Liste company: Nordwest Inkasso GmbH [1 Rechteck(e)]
+       · S1 Regel identifier: 65 140379 M 512 [1 Rechteck(e)]
+       · S1 Regel identifier: 12 345 678 901 [1 Rechteck(e)]
+       · S1 Regel contact: 040 123 45678 [1 Rechteck(e)]
+       · S1 Liste name: Hans Müller [1 Rechteck(e)]
+       · S1 Regel birthdate: 14.03.1979 [1 Rechteck(e)]
+       · S1 Liste name: Müller [1 Rechteck(e)]
+       · S1 Regel family: III [1 Rechteck(e)]
+       · S1 Regel religion: rk [1 Rechteck(e)]
+       · S2 Liste name: Hans Müller [1 Rechteck(e)]
+       · S2 Liste name: H. Müller [1 Rechteck(e)]
+OK    erkannt: Namen von Personen
+OK    erkannt: Bankverbindungen
+OK    erkannt: Steuer-ID, SV-Nummer, Ausweis
+OK    erkannt: Konfession & Kirchensteuer
+OK    erkannt: Steuerklasse, Kinder, Familienstand, Pfändungen
+OK    erkannt: Krankenkasse
+OK    erkannt: Geburtsdatum & -ort
+OK    erkannt: E-Mail & Telefon
+OK    Mitarbeiter aus Personalliste zugeordnet
+OK    Ersetzung MA-0417
+OK    Name auch auf der gescannten Seite gefunden
+       Übertragung: 0 zusätzliche Fundstellen
+       Modell bereit nach 0 s
+       KI: 14 Treffer in 7.0 s
+       · private_address 0.96: Hafenstraße 4
+       · private_address 1.00: 20457
+       · private_person 0.49: Hans Müller
+       · private_date 1.00: 14.03.1979
+       · private_address 0.79: Lindenweg 12
+       · private_address 0.86: 22303 Hamburg
+       · private_date 1.00: 01.04.2019
+       · private_person 0.84: Herr
+       · private_person 1.00: Müller
+       · account_number 1.00: DE89 3704 0044 0532 0130 00
+       · account_number 1.00: 12 345 678 901
+       · account_number 1.00: 65 140379 M 512
+       · private_email 1.00: hans.mueller@example.de
+       · private_phone 1.00: 040 123 45678
+       → address Hafenstraße 4, 20457 
+       → name Hans Müller ma:0417
+       → address Lindenweg 12, 22303 Hamburg 
+       → name Müller 
+       → bank DE89 3704 0044 0532 0130 00 
+       → bank 12 345 678 901 
+       → bank 65 140379 M 512 
+       → contact hans.mueller@example.de 
+       → contact 040 123 45678 
+OK    KI erkennt Namen
+OK    KI-Name der Personalliste zugeordnet
+       KI ergänzt 0 Treffer
+OK    Dateiname: Personal/MA-0417/Arbeitsvertrag_MA-0417.pdf
+OK    Export: 1 Datei, 14 Schwärzungen
+OK    Exportdatei: /Personal/MA-0417/Arbeitsvertrag_MA-0417.pdf
+OK    Export hat 2 Seiten
+       Textebene: Arbeitsvertrag zwischen der Nordlicht Logistik Gmbh,/ MA-0417 und Herm geboren am wohnhaft (Arbeitgeber) § 1 Beginn: Das Arbeitsverhältnis beginnt am 01.04.2019. Herr MA-0417 wird als Disponent eingestellt. § 4 Vergütung: 4.250,00 EUR brutto auf das Konto IBAN I Sozialversicherungsnummer Konfession:
+OK    Textebene vorhanden (durchsuchbar)
+OK    nicht mehr enthalten: Hans Müller
+OK    nicht mehr enthalten: Lindenweg
+OK    nicht mehr enthalten: DE89
+OK    nicht mehr enthalten: 3704
+OK    nicht mehr enthalten: 12 345 678
+OK    nicht mehr enthalten: 140379
+OK    nicht mehr enthalten: hans.mueller
+OK    Kürzel MA-0417 sauber in der Textebene
+OK    Schuldnerin bleibt sichtbar
+OK    Gehalt bleibt sichtbar
+OK    keine Autor-Metadaten
+OK    Protokoll geschrieben
+OK    Metal-Bibliothek für das KI-Modell im Paket: default.metallib
+
+SELBSTTEST BESTANDEN
+Exit: 0

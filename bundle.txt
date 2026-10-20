@@ -1,0 +1,5 @@
+Größe:  35M
+build/Build/Products/Release/Schwaerzen.app/Contents/Resources/OpenMedKit_OpenMedKit.bundle
+build/Build/Products/Release/Schwaerzen.app/Contents/Resources/swift-transformers_Hub.bundle
+build/Build/Products/Release/Schwaerzen.app/Contents/Resources/ZIPFoundation_ZIPFoundation.bundle
+build/Build/Products/Release/Schwaerzen.app/Contents/Resources/mlx-swift_Cmlx.bundle
