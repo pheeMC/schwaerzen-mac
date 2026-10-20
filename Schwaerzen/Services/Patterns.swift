@@ -142,7 +142,7 @@ enum GermanRules {
             rule("Geburtsdatum", .birthdate, #"(?i)\b(?:geb(?:oren)?\.?(?:\s+am)?|geburtsdatum|geb\.-?datum|geburtstag)\s*[:.]?\s*(\d{1,2}\.\s?\d{1,2}\.\s?(?:19|20)?\d{2})"#, group: 1),
             rule("Geburtsort", .birthdate, #"(?i)\bgeb(?:oren)?\.?\s+(?:am\s+\S+\s+)?in\s+([A-ZÄÖÜ][\wäöüß\-]+(?:\s[A-ZÄÖÜ][\wäöüß\-]+)?)"#, group: 1, confidence: 0.9),
             rule("Konfession", .religion, #"(?i)\b(?:konfession|religion(?:szugehörigkeit)?|kirchensteuermerkmal|kist-?merkmal|rel\.)\s*[:\-]?\s*(römisch-katholisch|katholisch|evangelisch(?:-lutherisch)?|reformiert|altkatholisch|jüdisch|freireligiös|keine|ohne|[a-zäöü]{1,3}\b|--?)"#, group: 1),
-            rule("Kirchensteuer", .religion, #"(?i)\b(?:kirchensteuer|kist|ki\.\s?st\.)\b[^\n\d]{0,30}(\d{1,3}(?:\.\d{3})*,\d{2})"#, group: 1),
+            rule("Kirchensteuer", .religion, #"(?i)\b(?:kirchensteuer|kist|ki\.\s?st\.)\b[^\n]{0,30}?(\d{1,3}(?:\.\d{3})*,\d{2})"#, group: 1),
             rule("Steuerklasse", .family, #"(?i)\b(?:steuerklasse|st\.?\s?kl\.?|stkl\.?)\s*[:.]?\s*([1-6]|VI|IV|V|I{1,3})\b"#, group: 1),
             rule("Kinderfreibeträge", .family, #"(?i)\b(?:kinderfreibetr(?:ag|äge)|kinderfb|kfb|kinderzahl|anzahl\s+kinder)\s*[:.]?\s*(\d{1,2}(?:,\d)?)"#, group: 1),
             rule("Familienstand", .family, #"(?i)\bfamilienstand\s*[:.]?\s*(ledig|verheiratet|geschieden|verwitwet|getrennt\s+lebend|eingetragene\s+lebenspartnerschaft|vh|ld|gs|vw)\b"#, group: 1),

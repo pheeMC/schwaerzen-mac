@@ -23,7 +23,7 @@ final class AIDetector {
         case failed(String)
     }
 
-    static let repoID = "OpenMed/privacy-filter-mlx-8bit"
+    nonisolated static let repoID = "OpenMed/privacy-filter-mlx-8bit"
 
     var phase: Phase = .checking
     var sourceDescription: String = ""
@@ -105,7 +105,7 @@ final class AIDetector {
     }
 
     /// Ordnet die Kategorien des Modells den eigenen Erkennungsarten zu.
-    static func kind(for label: String) -> Kind? {
+    nonisolated static func kind(for label: String) -> Kind? {
         let l = label.lowercased()
         if l.contains("person") || l.contains("name") { return .name }
         if l.contains("address") || l.contains("location") { return .address }

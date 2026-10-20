@@ -100,7 +100,7 @@ final class AppStore {
     @ObservationIgnored private var saveTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
     @ObservationIgnored private var touched: Set<UUID> = []
-    @ObservationIgnored let thumbnails = NSCache<NSString, NSImage>()
+    let thumbnails = NSCache<NSString, NSImage>()
 
     // MARK: - Zugriff
 
