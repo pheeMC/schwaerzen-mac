@@ -34,7 +34,7 @@ enum Classifier {
     private static let keywords: [(DocType, [String])] = [
         (.payroll, ["verdienstabrechnung", "entgeltabrechnung", "lohnabrechnung", "gehaltsabrechnung", "lohnjournal",
                     "abrechnung der brutto", "lohn- und gehalt", "lohnkonto", "lstb", "lohnsteuerbescheinigung"]),
-        (.personal, ["arbeitsvertrag", "anstellungsvertrag", "dienstvertrag", "änderungsvertrag", "aufhebungsvertrag",
+        (.personal, ["personalliste", "mitarbeiterliste", "mitarbeiterübersicht", "personalübersicht", "arbeitsvertrag", "anstellungsvertrag", "dienstvertrag", "änderungsvertrag", "aufhebungsvertrag",
                      "abmahnung", "arbeitnehmer", "personalakte", "zusatzvereinbarung zum arbeitsvertrag", "befristung"]),
         (.lease, ["mietvertrag", "pachtvertrag", "untermietvertrag", "gewerbemietvertrag", "nachtrag zum mietvertrag",
                   "nebenkostenabrechnung", "betriebskostenabrechnung", "vermieter", "mietfläche"]),

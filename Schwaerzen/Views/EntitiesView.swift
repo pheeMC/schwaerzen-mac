@@ -30,6 +30,20 @@ struct EntitiesView: View {
                                 Label(group.kind.label, systemImage: group.kind.symbol)
                                 Spacer()
                                 Text("\(group.rows.count)").monospacedDigit()
+                                Menu {
+                                    Button("Alle \(group.rows.count) schwärzen") {
+                                        store.setDecision(keys: group.rows.map(\.entity.key), .redact)
+                                    }
+                                    Button("Alle \(group.rows.count) behalten") {
+                                        store.setDecision(keys: group.rows.map(\.entity.key), .keep)
+                                    }
+                                } label: {
+                                    Image(systemName: "ellipsis.circle")
+                                }
+                                .menuStyle(.borderlessButton)
+                                .menuIndicator(.hidden)
+                                .fixedSize()
+                                .help("Ganze Gruppe entscheiden")
                             }
                         }
                     }

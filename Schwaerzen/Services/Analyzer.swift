@@ -236,10 +236,10 @@ enum Analyzer {
             if var last = merged.last, last.kind == r.kind, last.kind == .name || last.kind == .address {
                 let gapStart = last.range.location + last.range.length
                 let gapLength = r.range.location - gapStart
-                if gapLength >= 0 && gapLength <= 3 {
+                if gapLength >= 0 && gapLength <= 2 {
                     let gap = ns.substring(with: NSRange(location: gapStart, length: gapLength))
-                    let allowed = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: last.kind == .address ? "-,." : "-"))
-                    if gap.unicodeScalars.allSatisfy({ allowed.contains($0) }) {
+                    let allowedGaps: Set<String> = last.kind == .address ? ["", " ", "-", ", "] : ["", " ", "-"]
+                    if allowedGaps.contains(gap) {
                         last.range = NSRange(location: last.range.location, length: r.range.location + r.range.length - last.range.location)
                         last.confidence = max(last.confidence, r.confidence)
                         merged[merged.count - 1] = last
@@ -261,9 +261,19 @@ enum Analyzer {
                     range = NSRange(location: range.location + removed, length: max(0, range.length - removed))
                     surface = stripped
                 }
-                surface = surface.trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
+                // Tabellenzeilen: „Müller Robert Straße des Friedens 18“ → „Müller Robert“
+                let (kept, leading) = Analyzer.namePrefix(surface)
+                if kept.isEmpty { continue }
+                range = NSRange(location: range.location + leading, length: (kept as NSString).length)
+                surface = kept
                 if surface.count < 3 || !(surface.first?.isUppercase ?? false) { continue }
                 if surface.split(separator: " ").count == 1 && Norm.isMostlyUppercaseWord(surface) && surface.count <= 5 { continue }
+            }
+            if kind == .address {
+                let cleaned = Analyzer.cleanAddress(surface)
+                if cleaned.isEmpty { continue }
+                range = NSRange(location: range.location, length: (cleaned as NSString).length)
+                surface = cleaned
             }
             if range.length <= 0 { continue }
             if matcher.isNever(surface) { continue }
@@ -284,6 +294,56 @@ enum Analyzer {
                                source: "KI", label: raw.label))
         }
         return out
+    }
+
+    private static let addressCues: Set<String> = [
+        "straße", "strasse", "str.", "str", "weg", "allee", "platz", "ring", "gasse", "damm", "ufer", "chaussee",
+        "zum", "zur", "am", "an", "auf", "im", "in", "alte", "alter", "neue", "neuer", "hinter", "vor", "unter", "ober",
+        "deutsch", "deutschland", "staatsangehörigkeit", "plz", "ort"
+    ]
+    private static let streetSuffixes = ["straße", "strasse", "str.", "weg", "allee", "platz", "ring", "gasse", "damm",
+                                         "ufer", "chaussee", "graben", "bruch", "steig", "pfad", "markt", "hof"]
+
+    /// Schneidet einen erkannten Namen vor dem ersten Adress-Signal ab (Tabellen ohne Zellgrenzen im Text).
+    /// Liefert den behaltenen Text und die Zahl der am Anfang übersprungenen UTF-16-Zeichen.
+    static func namePrefix(_ s: String) -> (String, Int) {
+        let skip = CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines)
+        var start = s.startIndex
+        while start < s.endIndex, s[start].unicodeScalars.allSatisfy({ skip.contains($0) }) { start = s.index(after: start) }
+        let leading = s.utf16.distance(from: s.startIndex, to: start)
+        var idx = start
+        var lastEnd: String.Index? = nil
+        var count = 0
+        while idx < s.endIndex {
+            while idx < s.endIndex, s[idx].isWhitespace { idx = s.index(after: idx) }
+            guard idx < s.endIndex else { break }
+            var end = idx
+            while end < s.endIndex, !s[end].isWhitespace { end = s.index(after: end) }
+            var token = String(s[idx..<end])
+            while let last = token.last, last == "," || last == ";" || last == ":" { token.removeLast() }
+            let lower = token.lowercased()
+            if addressCues.contains(lower) { break }
+            if token.contains(where: { $0.isNumber }) { break }
+            if count >= 1 && lower.count > 4 && streetSuffixes.contains(where: { lower.hasSuffix($0) }) { break }
+            lastEnd = s.index(idx, offsetBy: token.count)
+            count += 1
+            if count == 4 { break }
+            idx = end
+        }
+        guard let e = lastEnd else { return ("", leading) }
+        return (String(s[start..<e]), leading)
+    }
+
+    /// Entfernt Staatsangehörigkeit u. Ä. am Ende und verwirft reine Zahlen.
+    static func cleanAddress(_ s: String) -> String {
+        var tokens = s.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",;")))
+            .split(separator: " ").map(String.init)
+        let tail: Set<String> = ["deutsch", "deutschland", "de", "germany", "staatsangehörigkeit"]
+        while let last = tokens.last, tail.contains(last.lowercased()) { tokens.removeLast() }
+        let joined = tokens.joined(separator: " ")
+        let letters = joined.filter { $0.isLetter }.count
+        if letters < 3 || joined.count < 6 { return "" }
+        return joined
     }
 
     static func nsRange(scalarStart: Int, scalarEnd: Int, in text: String) -> NSRange? {
@@ -397,6 +457,7 @@ extension Mandate {
         if m.kind == .term { return (.redact, true, "Immer-Liste") }
         if m.kind.locked { return (.redact, true, "Feste Regel") }
         if m.source == "Liste" { return (.redact, false, "") }
+        if docType.isPersonal && m.source == "Regel" && (m.kind == .address || m.kind == .contact) { return (.redact, false, "") }
         if m.source == "Regel" && m.confidence >= 0.9 { return (.redact, false, "") }
         if docType.isPersonal && m.confidence >= profile.autoThreshold { return (.redact, false, "") }
         return (.pending, false, "")

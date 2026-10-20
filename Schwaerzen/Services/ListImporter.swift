@@ -146,6 +146,21 @@ enum ListImporter {
         return out
     }
 
+    /// Erkennt eine Personalliste in einer Datei des Datenraums (Kopfzeile mit Vorname und Name/Nachname).
+    static func detectEmployeeList(at url: URL) -> [PersonRecord]? {
+        guard ["xlsx", "xlsm", "csv"].contains(url.pathExtension.lowercased()),
+              let rows = try? readTable(url), !rows.isEmpty else { return nil }
+        let hasHeader = rows.prefix(10).contains { row in
+            let keys = row.map { Norm.key($0) }
+            let first = keys.contains { $0.contains("vorname") }
+            let last = keys.contains { $0 == "name" || $0.contains("nachname") || $0.contains("familienname") }
+            return first && last
+        }
+        guard hasHeader else { return nil }
+        let people = employees(from: rows)
+        return people.count >= 3 ? people : nil
+    }
+
     // MARK: - Firmen
 
     static func companies(from rows: [[String]]) -> [CompanyRecord] {

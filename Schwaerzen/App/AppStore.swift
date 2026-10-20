@@ -100,6 +100,7 @@ final class AppStore {
     @ObservationIgnored private var saveTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
     @ObservationIgnored private var touched: Set<UUID> = []
+    @ObservationIgnored private var needsReanalysis: Set<UUID> = []
     let thumbnails = NSCache<NSString, NSImage>()
 
     // MARK: - Zugriff
@@ -358,15 +359,28 @@ final class AppStore {
             progressText = ""
             progressValue = 0
         }
-        while let next = nextQueued() {
-            if Task.isCancelled { break }
-            let (mid, fid) = next
-            await analyze(mandateID: mid, fileID: fid)
-            touched.insert(mid)
-            if let m = mandate(mid) {
-                let total = m.files.filter { $0.status != .unsupported }.count
-                let done = m.files.filter { $0.status == .done || $0.status == .failed }.count
-                progressValue = total > 0 ? Double(done) / Double(total) : 0
+        while true {
+            while let next = nextQueued() {
+                if Task.isCancelled { break }
+                let (mid, fid) = next
+                await analyze(mandateID: mid, fileID: fid)
+                touched.insert(mid)
+                if let m = mandate(mid) {
+                    let total = m.files.filter { $0.status != .unsupported }.count
+                    let done = m.files.filter { $0.status == .done || $0.status == .failed }.count
+                    progressValue = total > 0 ? Double(done) / Double(total) : 0
+                }
+            }
+            // Neue Personalliste im Datenraum gefunden → alle Dokumente noch einmal mit der Liste prüfen
+            guard !needsReanalysis.isEmpty, !Task.isCancelled else { break }
+            let ids = needsReanalysis
+            needsReanalysis = []
+            for mid in ids {
+                mutate(mid) { m in
+                    for i in m.files.indices where m.files[i].status == .done && m.files[i].docType != .excluded {
+                        m.files[i].status = .queued
+                    }
+                }
             }
         }
         for mid in touched {
@@ -398,6 +412,21 @@ final class AppStore {
         do {
             guard FileManager.default.fileExists(atPath: src.path) else { throw AppError("Originaldatei nicht mehr vorhanden") }
             let method = try await Converter.convert(src, to: pdf)
+
+            // Personalliste im Datenraum? Dann sofort als Liste übernehmen.
+            if let people = await Task.detached(priority: .utility, operation: { ListImporter.detectEmployeeList(at: src) }).value,
+               let m = mandate(mid) {
+                let known = Set(m.employees.map { Norm.key($0.fullName) })
+                let added = people.filter { !known.contains(Norm.key($0.fullName)) }
+                if !added.isEmpty {
+                    mutate(mid) { m in
+                        m.employees.append(contentsOf: added)
+                        if m.employeesSource.isEmpty { m.employeesSource = file.fileName }
+                    }
+                    needsReanalysis.insert(mid)
+                    alertMessage = "In „\(file.fileName)“ wurde eine Personalliste erkannt (\(people.count) Personen) und übernommen. Alle Dokumente werden damit noch einmal geprüft."
+                }
+            }
 
             progressText = "Lese Text: \(file.fileName)"
             mutate(mid) { m in
