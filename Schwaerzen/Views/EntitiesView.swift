@@ -64,25 +64,30 @@ struct EntitiesView: View {
         let redact = rows.filter { $0.entity.decision == .redact }.count
         let findings = rows.filter { $0.entity.decision != .keep }.reduce(0) { $0 + $1.stat.hits }
 
-        return HStack(alignment: .bottom, spacing: 24) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Personen & Begriffe")
-                    .font(.title2.weight(.semibold))
-                Text("Eine Entscheidung gilt für alle Fundstellen in allen Dokumenten.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 28) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Personen & Begriffe")
+                        .font(.title2.weight(.semibold))
+                    Text("Eine Entscheidung gilt für alle Fundstellen in allen Dokumenten.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .layoutPriority(1)
+                Spacer(minLength: 12)
+                StatTile(value: "\(pending)", label: "offen", tint: pending > 0 ? .orange : .secondary)
+                StatTile(value: "\(redact)", label: "werden geschwärzt")
+                StatTile(value: "\(findings)", label: "Fundstellen")
             }
-            Spacer()
-            StatTile(value: "\(pending)", label: "offen", tint: pending > 0 ? .orange : .secondary)
-            StatTile(value: "\(redact)", label: "werden geschwärzt")
-            StatTile(value: "\(findings)", label: "Fundstellen")
-            VStack(alignment: .trailing, spacing: 6) {
+            HStack(spacing: 12) {
                 Picker("Filter", selection: $store.decisionFilter) {
                     ForEach(DecisionFilter.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 280)
+                .fixedSize()
+                Spacer()
                 Menu("Alle offenen …") {
                     Button("… schwärzen") {
                         store.setDecision(keys: rows.filter { $0.entity.decision == .pending }.map(\.entity.key), .redact)
@@ -91,7 +96,7 @@ struct EntitiesView: View {
                         store.setDecision(keys: rows.filter { $0.entity.decision == .pending }.map(\.entity.key), .keep)
                     }
                 }
-                .menuStyle(.borderlessButton)
+                .menuStyle(.button)
                 .fixedSize()
                 .disabled(pending == 0)
             }
@@ -135,11 +140,23 @@ struct EntityRowView: View {
             } else {
                 Tag(text: e.kind.shortLabel, tint: e.kind.tint)
             }
-            Text(e.replacement ?? "█████")
-                .font(.system(.callout, design: .monospaced))
-                .foregroundStyle(e.replacement == nil ? .tertiary : .primary)
-                .frame(width: 120, alignment: .leading)
-                .lineLimit(1)
+            Group {
+                if let r = e.replacement {
+                    Text(r)
+                        .font(.system(.callout, design: .monospaced).weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Color.redactBlack, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .lineLimit(1)
+                } else {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(Color.redactBlack)
+                        .frame(width: 56, height: 14)
+                        .help("Nur schwarzer Balken, ohne Kürzel")
+                }
+            }
+            .frame(width: 130, alignment: .leading)
             Text("\(row.stat.hits) in \(row.stat.files.count) Dok.")
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)

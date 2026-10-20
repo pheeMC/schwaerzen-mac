@@ -6,12 +6,13 @@ struct Tag: View {
 
     var body: some View {
         Text(text)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 7)
+            .font(.callout.weight(.medium))
+            .padding(.horizontal, 8)
             .padding(.vertical, 2)
-            .foregroundStyle(tint)
-            .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .foregroundStyle(tint.mix(with: .black, by: 0.45))
+            .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .lineLimit(1)
+            .fixedSize()
     }
 }
 
@@ -91,7 +92,7 @@ struct SnippetText: View {
         var a = AttributedString(before)
         var m: AttributedString
         if redacted {
-            m = AttributedString(" \(replacement ?? "█████") ")
+            m = AttributedString(" \(replacement ?? "geschwärzt") ")
             m.foregroundColor = .white
             m.backgroundColor = .black
             m.font = .system(.caption, design: .monospaced)
