@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -61,14 +61,21 @@ jobs:
           tail -40 build.log
           exit $STATUS
 
-      - name: Logs sichern
+      - name: Diagnose in Branch ci-log ablegen
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: |
-            build.log
-            diagnostics.txt
+        run: |
+          mkdir -p /tmp/ci
+          [ -f build.log ] || echo "kein build.log" > build.log
+          grep -E "(error|warning): " build.log | grep "/Schwaerzen/Schwaerzen/" | sed 's#.*/Schwaerzen/Schwaerzen/##' | sort -u > /tmp/ci/own.txt || true
+          grep -E "error: |fatal error|xcodebuild: error" build.log | sort -u | head -300 > /tmp/ci/errors.txt || true
+          tail -150 build.log > /tmp/ci/tail.txt
+          echo "run ${{ github.run_number }} sha ${{ github.sha }}" > /tmp/ci/info.txt
+          cd /tmp/ci
+          git init -q
+          git checkout -q -b ci-log
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com add .
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Build ${{ github.run_number }}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ci-log
 
       - name: Paketieren
         run: |
