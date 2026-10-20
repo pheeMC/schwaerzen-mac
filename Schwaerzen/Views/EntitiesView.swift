@@ -36,6 +36,9 @@ struct EntitiesView: View {
                 }
                 .listStyle(.inset)
                 .alternatingRowBackgrounds(.enabled)
+                .onChange(of: store.selectedEntityKey) { _, key in
+                    if key != nil { store.showInspector = true }
+                }
             }
         }
     }

@@ -82,6 +82,30 @@ jobs:
           ditto -c -k --keepParent "$APP" Schwaerzen.zip
           ls -lh Schwaerzen.zip
 
+      - name: Oberflächentest (App starten, Bildschirmfotos)
+        run: |
+          APP="build/Build/Products/Release/Schwaerzen.app"
+          mkdir -p ui
+          rm -f ~/Library/Logs/DiagnosticReports/Schwaerzen* 2>/dev/null || true
+          : > ui/ergebnis.txt
+          for MODE in files entities unsure pages; do
+            EXTRA=""
+            [ "$MODE" = "entities" ] && EXTRA="--inspector"
+            "$APP/Contents/MacOS/Schwaerzen" --demo "$RUNNER_TEMP/demo" --mode $MODE --no-ai $EXTRA > "ui/$MODE.log" 2>&1 &
+            PID=$!
+            sleep 35
+            osascript -e 'tell application "System Events" to set frontmost of (first process whose unix id is '"$PID"') to true' 2>/dev/null || true
+            sleep 3
+            if kill -0 $PID 2>/dev/null; then echo "$MODE: läuft" >> ui/ergebnis.txt; else echo "$MODE: BEENDET/ABGESTÜRZT" >> ui/ergebnis.txt; fi
+            screencapture -x -t jpg "ui/$MODE.jpg" 2>>ui/ergebnis.txt || echo "$MODE: kein Bildschirmfoto" >> ui/ergebnis.txt
+            kill $PID 2>/dev/null || true
+            sleep 3
+          done
+          for f in ~/Library/Logs/DiagnosticReports/Schwaerzen*; do
+            [ -f "$f" ] && { echo "ABSTURZBERICHT: $f" >> ui/ergebnis.txt; head -c 60000 "$f" > "ui/crash-$(basename "$f").txt"; }
+          done
+          cat ui/ergebnis.txt
+
       - name: Diagnose in Branch ci-log ablegen
         if: always()
         run: |
@@ -89,6 +113,7 @@ jobs:
           [ -f build.log ] || echo "kein build.log" > build.log
           grep -E "(error|warning): " build.log | grep "schwaerzen-mac/Schwaerzen/" | sed 's#.*schwaerzen-mac/Schwaerzen/##' | sort -u > /tmp/ci/own.txt || true
           cp selftest.txt bundle.txt /tmp/ci/ 2>/dev/null || true
+          cp -R ui /tmp/ci/ 2>/dev/null || true
           grep -E "error: |fatal error|xcodebuild: error" build.log | sort -u | head -300 > /tmp/ci/errors.txt || true
           tail -150 build.log > /tmp/ci/tail.txt
           echo "run ${{ github.run_number }} sha ${{ github.sha }}" > /tmp/ci/info.txt
@@ -99,8 +124,10 @@ jobs:
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Build ${{ github.run_number }}"
           git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ci-log
 
-      - name: Selbsttest bestanden?
-        run: grep -q "SELBSTTEST BESTANDEN" selftest.txt
+      - name: Selbsttest & Oberflächentest bestanden?
+        run: |
+          grep -q "SELBSTTEST BESTANDEN" selftest.txt
+          ! grep -q "ABGESTÜRZT\|ABSTURZBERICHT" ui/ergebnis.txt
 
       - name: Release veröffentlichen
         uses: softprops/action-gh-release@v2

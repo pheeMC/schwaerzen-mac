@@ -71,7 +71,8 @@ struct DetailView: View {
         .searchable(text: $store.search, placement: .toolbar, prompt: "Name oder Begriff")
         .inspector(isPresented: $store.showInspector) {
             InspectorView()
-                .inspectorColumnWidth(min: 290, ideal: 330, max: 440)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                .inspectorColumnWidth(min: 300, ideal: 340, max: 460)
         }
         .safeAreaInset(edge: .bottom) {
             if store.processing {
@@ -116,11 +117,7 @@ struct DetailView: View {
         ToolbarItem(placement: .principal) {
             Picker("Ansicht", selection: $store.mode) {
                 ForEach(ReviewMode.allCases) { mode in
-                    if mode == .unsure && store.pendingCount > 0 {
-                        Text("\(mode.label) \(store.pendingCount)").tag(mode)
-                    } else {
-                        Text(mode.label).tag(mode)
-                    }
+                    Text(mode.label).tag(mode)
                 }
             }
             .pickerStyle(.segmented)

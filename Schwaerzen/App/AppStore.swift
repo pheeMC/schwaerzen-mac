@@ -72,7 +72,7 @@ final class AppStore {
     var search: String = ""
     var decisionFilter: DecisionFilter = .all
     var selectedEntityKey: String?
-    var showInspector: Bool = true
+    var showInspector: Bool = false
 
     var stats: [String: EntityStat] = [:]
     var redactionsByFile: [UUID: Int] = [:]
@@ -129,8 +129,49 @@ final class AppStore {
             }
         }
         rebuildIndex()
+        setupDemoIfRequested()
         await ai.locateAndLoad()
         startAnalysis()
+    }
+
+    /// `--demo <ordner> [--mode entities|unsure|pages|files] [--no-ai] [--inspector]` – für Oberflächentests.
+    private func setupDemoIfRequested() {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--demo") else { return }
+        let dir = i + 1 < args.count && !args[i + 1].hasPrefix("--")
+            ? URL(fileURLWithPath: args[i + 1])
+            : FileManager.default.temporaryDirectory.appendingPathComponent("schwaerzen-demo")
+        let name = "Demo Logistik GmbH"
+        if let existing = mandates.first(where: { $0.name == name }) {
+            select(mandate: existing.id)
+        } else {
+            let root = dir.appendingPathComponent("Datenraum Demo", isDirectory: true)
+            _ = SelfTest.makeTestPDF(at: root.appendingPathComponent("02 Personal/Müller, Hans/Arbeitsvertrag_Hans-Mueller.pdf"))
+            _ = SelfTest.makePDF(at: root.appendingPathComponent("03 Immobilien/Mietvertrag_Lager_Schroeder.pdf"), text: """
+            Mietvertrag über Gewerberäume
+
+            Zwischen Frau Gerda Schröder, Elbchaussee 140, 22763 Hamburg – Vermieterin – und der Demo Logistik GmbH,
+            Hafenstraße 4, 20457 Hamburg – Mieterin – wird folgender Vertrag geschlossen:
+
+            § 1 Mietobjekt: Lagerhalle Halskestraße 38, 22113 Hamburg, ca. 4.800 m² Hallenfläche.
+            § 3 Miete: 24.000,00 EUR netto monatlich auf das Konto IBAN DE89 3704 0044 0532 0130 00.
+            § 14 Ansprechpartner der Vermieterin ist Thomas Schröder, Telefon 040 987 65432.
+            """, scannedText: nil)
+            _ = SelfTest.makePDF(at: root.appendingPathComponent("02 Personal/Müller, Hans/AU_Bescheinigung_2025.pdf"),
+                                 text: "Arbeitsunfähigkeitsbescheinigung\n\nHans Müller, arbeitsunfähig seit 03.02.2025", scannedText: nil)
+            createMandate(name: name, caseNumber: "12 IN 34/26")
+            mutate { m in
+                m.employees = [PersonRecord(firstName: "Hans", lastName: "Müller", number: "0417"),
+                               PersonRecord(firstName: "Sabine", lastName: "Krüger", number: "0058")]
+                m.employeesSource = "Demo-Personalliste"
+                m.profile.useAI = !args.contains("--no-ai")
+            }
+            addFiles([root])
+        }
+        if let mi = args.firstIndex(of: "--mode"), mi + 1 < args.count, let mode = ReviewMode(rawValue: args[mi + 1]) {
+            self.mode = mode
+        }
+        if args.contains("--inspector") { showInspector = true }
     }
 
     // MARK: - Ändern & Speichern
@@ -326,6 +367,9 @@ final class AppStore {
         touched = []
         rebuildIndex()
         saveNow()
+        if CommandLine.arguments.contains("--inspector"), selectedEntityKey == nil {
+            selectedEntityKey = groupedEntities.first?.rows.first?.entity.key
+        }
     }
 
     private func setStatus(_ mid: UUID, _ fid: UUID, _ status: FileStatus, message: String = "") {

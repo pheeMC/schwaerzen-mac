@@ -209,17 +209,23 @@ enum SelfTest {
 
     // MARK: - Test-PDF
 
-    private static func makeTestPDF(at url: URL) -> Bool {
+    static func makeTestPDF(at url: URL) -> Bool {
+        makePDF(at: url, text: page1, scannedText: page2)
+    }
+
+    /// Erzeugt ein PDF mit einer Textseite und optional einer „gescannten“ Seite (nur Bild).
+    static func makePDF(at url: URL, text: String, scannedText: String?) -> Bool {
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         var box = CGRect(x: 0, y: 0, width: 595, height: 842)
         guard let ctx = CGContext(url as CFURL, mediaBox: &box, nil) else { return false }
 
         ctx.beginPDFPage(nil)
-        drawText(page1, in: box.insetBy(dx: 56, dy: 70), ctx: ctx, size: 11)
+        drawText(text, in: box.insetBy(dx: 56, dy: 70), ctx: ctx, size: 11)
         ctx.endPDFPage()
 
         // Seite 2: Text als Bild (simuliert einen Scan)
         let scale: CGFloat = 2
-        if let bmp = CGContext(data: nil, width: Int(box.width * scale), height: Int(box.height * scale), bitsPerComponent: 8, bytesPerRow: 0,
+        if let page2 = scannedText, let bmp = CGContext(data: nil, width: Int(box.width * scale), height: Int(box.height * scale), bitsPerComponent: 8, bytesPerRow: 0,
                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) {
             bmp.setFillColor(NSColor.white.cgColor)
             bmp.fill(CGRect(x: 0, y: 0, width: box.width * scale, height: box.height * scale))

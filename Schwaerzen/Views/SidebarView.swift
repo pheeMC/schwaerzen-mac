@@ -51,7 +51,7 @@ struct SidebarView: View {
                 .buttonStyle(.borderless)
             }
             .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 86, maxHeight: 86, alignment: .topLeading)
         }
         .confirmationDialog("Mandat löschen?", isPresented: Binding(
             get: { confirmDelete != nil },
@@ -111,7 +111,7 @@ struct ModelStatusView: View {
 
     var body: some View {
         let ai = store.ai
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             switch ai.phase {
             case .ready:
                 Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
@@ -123,7 +123,8 @@ struct ModelStatusView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(ai.statusText)
                     .font(.caption)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 if ai.isReady && !ai.sourceDescription.isEmpty {
                     Text(ai.sourceDescription).font(.caption2).foregroundStyle(.secondary)
                 }
@@ -135,6 +136,8 @@ struct ModelStatusView: View {
                     .buttonStyle(.link)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(height: 40, alignment: .topLeading)
     }
 }

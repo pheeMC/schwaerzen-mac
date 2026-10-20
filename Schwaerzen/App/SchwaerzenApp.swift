@@ -13,12 +13,13 @@ struct SchwaerzenApp: App {
         WindowGroup("Schwärzen") {
             RootView()
                 .environment(store)
-                .frame(minWidth: 1080, minHeight: 680)
+                .frame(minWidth: 960, minHeight: 640)
                 .task { await store.bootstrap() }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
                     store.saveNow()
                 }
         }
+        .defaultSize(width: 1360, height: 860)
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(replacing: .newItem) {

@@ -15,12 +15,14 @@ struct DropZoneView: View {
                 Text(targeted ? "Loslassen zum Hinzufügen" : "Hierher ziehen. Alles bleibt auf dem Mac.")
                     .font(.system(size: 32, weight: .medium, design: .rounded))
                     .multilineTextAlignment(.center)
+                    .lineLimit(2)
                     .contentTransition(.opacity)
                 Text("Word, Excel und PowerPoint wandelt Office um. PDFs und Scans werden per Texterkennung gelesen. Die Ordnerstruktur bleibt erhalten.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 520)
+                    .lineLimit(3)
+                    .frame(width: 520)
                 HStack(spacing: 12) {
                     Button {
                         store.chooseFiles()
@@ -58,7 +60,7 @@ struct DropZoneView: View {
             Spacer(minLength: 40)
         }
         .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }
 
     private var tips: some View {
@@ -78,7 +80,7 @@ struct DropZoneView: View {
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.callout.weight(.semibold))
-                Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.caption).foregroundStyle(.secondary).lineLimit(3)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

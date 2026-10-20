@@ -42,7 +42,7 @@ struct ExportSheet: View {
                             Image(systemName: "server.rack").foregroundStyle(.secondary).frame(width: 22)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Direkt in den Datenraum hochladen")
-                                Text("dataroom.satus-advisors.com – folgt in Version 0.2").font(.caption).foregroundStyle(.secondary)
+                                Text("folgt in einer späteren Version").font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
                             Toggle("", isOn: .constant(false)).labelsHidden().disabled(true)
